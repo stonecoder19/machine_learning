@@ -1,0 +1,72 @@
+import numpy as np
+from sklearn import datasets
+
+
+#X = np.ones((5, 5))
+#Y = np.array([1, 2, 3, 0, 2, 1, 4, 5])
+num_classes = 10
+
+digits = datasets.load_digits()
+
+num_digits = len(digits.images)
+X = digits.images.reshape((num_digits, -1))
+Y = digits.target
+
+X_train = X[:num_digits//2]
+Y_train = Y[:num_digits//2]
+X_test =  X[num_digits//2:]
+Y_test =  Y[num_digits//2:]
+
+def one_hot(Y):
+   one_hot_vec = np.zeros((Y.shape[0],num_classes))
+   one_hot_vec[np.arange(Y.shape[0]), Y] = 1
+   return one_hot_vec 
+
+def add_bias(X):
+   return np.hstack((np.ones((X.shape[0],1)),X))
+
+def softmax(X):
+    exps = np.exp(X)
+    return exps / np.sum(exps)
+
+def loss_gradient(x,y_pred,y):
+    loss = -np.sum(y * np.log(y_pred))
+    error = y - y_pred
+    grad = np.dot(x, error)
+    return loss, grad 
+
+def predict(weights, x):
+   preds = np.dot(x/255, weights)
+   probs = [softmax(x) for x in preds]
+   return preds, probs
+
+def sgd_softmax(X, Y,num_iter = 500,alpha=0.1):
+    weights = np.zeros((X.shape[1]+1,num_classes))
+    X = add_bias(X)
+    print(X.shape)
+    Y = one_hot(Y)
+    for _ in xrange(num_iter):
+          for idx,row in enumerate(X):
+              row = row / 255  #to avoid exp function blowing up
+              row = row.reshape((row.shape[0],1))
+              scores = np.dot(row.T,weights)
+              probs = softmax(scores)
+              loss, gradient = loss_gradient(row,probs,Y[idx])
+              weights = weights + alpha * gradient
+              print(loss)
+   
+    return weights
+              
+         
+weights = sgd_softmax(X_train, Y_train)
+_,probs = predict(weights,add_bias(X_test))
+
+num_correct = 0
+for idx,prob in enumerate(probs):
+    y = Y_test[idx]
+    pred_pos = np.argmax(prob)
+    if(pred_pos == y):
+        num_correct += 1
+
+
+print("Accuracy",num_correct/float(len(Y_test)))
